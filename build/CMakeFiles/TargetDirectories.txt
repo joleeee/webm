@@ -1,0 +1,15 @@
+/home/elv/kompressar/build/CMakeFiles/rebuild_cache.dir
+/home/elv/kompressar/build/CMakeFiles/edit_cache.dir
+/home/elv/kompressar/build/CMakeFiles/webm_bot.dir
+/home/elv/kompressar/build/lib/discordpp/CMakeFiles/rebuild_cache.dir
+/home/elv/kompressar/build/lib/discordpp/CMakeFiles/edit_cache.dir
+/home/elv/kompressar/build/lib/discordpp/lib/nlohmannjson/CMakeFiles/rebuild_cache.dir
+/home/elv/kompressar/build/lib/discordpp/lib/nlohmannjson/CMakeFiles/edit_cache.dir
+/home/elv/kompressar/build/lib/rest-beast/CMakeFiles/rebuild_cache.dir
+/home/elv/kompressar/build/lib/rest-beast/CMakeFiles/edit_cache.dir
+/home/elv/kompressar/build/lib/websocket-simpleweb/CMakeFiles/rebuild_cache.dir
+/home/elv/kompressar/build/lib/websocket-simpleweb/CMakeFiles/edit_cache.dir
+/home/elv/kompressar/build/lib/websocket-simpleweb/lib/simple-websocket-server/CMakeFiles/rebuild_cache.dir
+/home/elv/kompressar/build/lib/websocket-simpleweb/lib/simple-websocket-server/CMakeFiles/edit_cache.dir
+/home/elv/kompressar/build/lib/plugin-ratelimit/CMakeFiles/rebuild_cache.dir
+/home/elv/kompressar/build/lib/plugin-ratelimit/CMakeFiles/edit_cache.dir

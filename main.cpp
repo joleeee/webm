@@ -74,7 +74,7 @@ void delete_message(std::shared_ptr<DppBot> &bot, string channel_id, string mess
 		nullptr, nullptr, nullptr);
 }
 
-void react(std::shard_ptr<DppBot> &bot, string channel_id, string message_id, string emoji)
+void react(std::shared_ptr<DppBot> &bot, string channel_id, string message_id, string emoji)
 {
 	bot->call(
 		make_shared<string>("PUT"),
@@ -82,7 +82,6 @@ void react(std::shard_ptr<DppBot> &bot, string channel_id, string message_id, st
 		nullptr, nullptr, nullptr);
 }
 
-void insert_submission(
 
 string token;
 static string submissions_id = "758776672186138624";

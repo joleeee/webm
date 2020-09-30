@@ -1,1 +1,0 @@
-/usr/bin/c++  -Wall -pedantic -g -fsanitize=address -fno-omit-frame-pointer CMakeFiles/webm_bot.dir/main.cpp.o -o webm_bot  /usr/lib64/libboost_system.so.1.72.0 /usr/lib64/libboost_date_time.so.1.72.0 -lsqlite3 /usr/lib/libssl.so /usr/lib/libcrypto.so -pthread 

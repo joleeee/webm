@@ -7,6 +7,11 @@
 #include <discordpp/plugin-ratelimit.hh>
 #include <discordpp/rest-beast.hh>
 #include <discordpp/websocket-simpleweb.hh>
+
+#include "token.cpp"
+#include "jsonwrapper.cpp"
+#include "sqlwrapper.cpp"
+#include "apiwrapper.cpp"
 using namespace sqlite;
 using namespace std;
 
@@ -18,41 +23,9 @@ using DppBot = dpp::PluginRateLimit<dpp::WebsocketSimpleWeb<dpp::RestBeast<dpp::
 
 database db("discord_db.db");
 
-string get_token()
-{
-	string token;
-	std::ifstream token_file("bot.token", std::ifstream::in);
-	getline(token_file, token);
-	token_file.close();
-	cout << "token is " << token << endl;
-	return token;
-
-}
-
-int postcount(string id)
-{
-	long pcount;
-	db << "select count(*) from submissions where author = ?;" << id >> pcount;
-	return pcount;
-}
-
-string latestposturl(string id)
-{
-	long latestpostid;
-	db << "select max(_id) from submissions where author = ?;" << id >> latestpostid;
-	string url = "";
-	db << "select link from submissions where _id = ?;" << latestpostid >> url;
-	return url;
-}
-
-string latestpostdescription(string id)
-{
-	long latestpostid;
-	db << "select max(_id) from submissions where author = ?;" << id >> latestpostid;
-	string url = "";
-	db << "select description from submissions where _id = ?;" << latestpostid >> url;
-	return url;
-}
+string token;
+static string submissions_id = "758776672186138624";
+static string error_id = "758777881966018590";
 
 void send_message(std::shared_ptr<DppBot> &bot, string channel_id, string message)
 {
@@ -82,54 +55,73 @@ void react(std::shared_ptr<DppBot> &bot, string channel_id, string message_id, s
 		nullptr, nullptr, nullptr);
 }
 
-struct Attachment
+void request_messages(std::shared_ptr<DppBot> &bot, string channel_id, int count)
 {
-	string url, filename;
-	long size, width, height;
-	Attachment(json attach)
+	assert(count >= 1 && count <= 100)
+	bot->call(
+}
+
+
+void handle_message(std::shared_ptr<DppBot> &bot, json raw_msg)
+{
+	Message msg(raw_msg);
+	if(msg.author_id == "758781959178289172")
+		return;
+	cout << "MESSAGE_CREATE\n";
+
+	bool has_attachments = msg.attachments > 0;
+	bool in_submissions = msg.channel_id == submissions_id;
+	bool in_error = msg.channel_id == error_id;
+
+	if(in_submissions && (!has_attachments || msg.content.size() < 5))
 	{
-		url	= attach["url"].get<string>();
-		filename= attach["filename"].get<string>();
-		size	= attach["size"].get<long>();
-		width	= attach["width"].get<long>();
-		height	= attach["height"].get<long>();
+		delete_message(bot, msg.channel_id, msg.message_id);
+		send_message(bot, error_id,
+				"<@"+msg.author_id+">, " + "All submissions must have both an attachment and a message of length >= 5. Your submission was deleted and not counted.");
 	}
-};
-
-struct Message
-{
-	string author_id, channel_id, message_id;
-	string content, timestamp;
-	int attachments;
-	json raw_attachment;
-	Message(json msg)
+	else if(in_submissions)
 	{
-		author_id = msg["author"]["id"].get<string>();
-		channel_id = msg["channel_id"].get<string>();
-		message_id = msg["id"].get<string>();
+		// add this submission to our database
+		Attachment attachment = msg.get_attachment();
+		db << "insert into submissions (author, timestmp, description, link, filename, width, height, size) values (?,?,?,?,?,?,?,?);"
+			<< msg.author_id
+			<< msg.timestamp
+			<< msg.content
+			<< attachment.url
+			<< attachment.filename
+			<< attachment.width
+			<< attachment.height
+			<< attachment.size;
+		cout << "Successfully inserted new entry, " << msg.author_id << " now has " << postcount(db, msg.author_id) << endl;
 
-		content = msg["content"].get<string>();
-		timestamp = msg["timestamp"].get<string>();
-
-		attachments = msg["attachments"].size();
-
-		if(attachments > 0)
+		react(bot, submissions_id, msg.message_id, "%F0%9F%86%97");
+	}
+	else if(in_error)
+	{
+		istringstream iss(msg.content);
+		vector<string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
+		string datastring="err";
+		if(tokens.size() == 1)
 		{
-			raw_attachment = msg["attachments"][0];
+			if(tokens[0] == "postcount")
+			{
+				long cnt = postcount(db, msg.author_id);
+				datastring = "You have made " + to_string(cnt) + " posts.";
+			}
+			else if(tokens[0] == "lastpost" && postcount(db, msg.author_id) > 0)
+			{
+				string url = latestposturl(db, msg.author_id);
+				string desc = latestpostdescription(db, msg.author_id);
+				datastring = desc + "\n" + url;
+			}
 		}
+		send_message(bot, error_id,
+				"<@"+msg.author_id+">, " + datastring);
 	}
-	Attachment get_attachment()
-	{
-		if(attachments <= 0)
-			throw "No attachments!";
-		return Attachment(raw_attachment);
-	}
-};
+	cout << raw_msg << endl;
+}
 
 
-string token;
-static string submissions_id = "758776672186138624";
-static string error_id = "758777881966018590";
 // todo webm of the day
 int main() {
 	// setup
@@ -175,61 +167,7 @@ int main() {
 				"MESSAGE_CREATE",
 				[&bot](json raw_msg)
 				{
-					Message msg(raw_msg);
-					if(msg.author_id == "758781959178289172")
-						return;
-					cout << "MESSAGE_CREATE\n";
-					bool has_attachments = msg.attachments > 0;
-					bool in_submissions = msg.channel_id == submissions_id;
-					bool in_error = msg.channel_id == error_id;
-
-					// todo break if sender is ourselves
-					if(in_submissions && (!has_attachments || msg.content.size() < 5))
-					{
-						delete_message(bot, msg.channel_id, msg.message_id);
-						send_message(bot, error_id,
-								"<@"+msg.author_id+">, " + "All submissions must have both an attachment and a message of length >= 5. Your submission was deleted and not counted.");
-					}
-					else if(in_submissions)
-					{
-						// add this submission to our database
-						Attachment attachment = msg.get_attachment();
-						db << "insert into submissions (author, timestmp, description, link, filename, width, height, size) values (?,?,?,?,?,?,?,?);"
-							<< msg.author_id
-							<< msg.timestamp
-							<< msg.content
-							<< attachment.url
-							<< attachment.filename
-							<< attachment.width
-							<< attachment.height
-							<< attachment.size;
-						cout << "Successfully inserted new entry, " << msg.author_id << " now has " << postcount(msg.author_id) << endl;
-
-						react(bot, submissions_id, msg.message_id, "%F0%9F%86%97");
-					}
-					else if(in_error)
-					{
-						istringstream iss(msg.content);
-						vector<string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
-						string datastring="err";
-						if(tokens.size() == 1)
-						{
-							if(tokens[0] == "postcount")
-							{
-								long cnt = postcount(msg.author_id);
-								datastring = "You have made " + to_string(cnt) + " posts.";
-							}
-							else if(tokens[0] == "lastpost" && postcount(msg.author_id) > 0)
-							{
-								string url = latestposturl(msg.author_id);
-								string desc = latestpostdescription(msg.author_id);
-								datastring = desc + "\n" + url;
-							}
-						}
-						send_message(bot, error_id,
-								"<@"+msg.author_id+">, " + datastring);
-					}
-					cout << raw_msg << endl;
+					handle_message(bot, raw_msg);
 				}
 			});
 	auto aioc = std::make_shared<asio::io_context>();

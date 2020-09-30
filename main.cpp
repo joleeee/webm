@@ -54,6 +54,36 @@ string latestpostdescription(string id)
 	return url;
 }
 
+void send_message(std::shared_ptr<DppBot> &bot, string channel_id, string message)
+{
+
+	json tosend;
+	tosend["content"] = message;
+	bot->call(
+		make_shared<string>("POST"),
+		make_shared<string>("/channels/"+channel_id+"/messages"),
+		make_shared<json>(tosend),
+		nullptr, nullptr);
+}
+
+void delete_message(std::shared_ptr<DppBot> &bot, string channel_id, string message_id)
+{
+	bot->call(
+		make_shared<string>("DELETE"),
+		make_shared<string>("/channels/"+channel_id+"/messages/"+message_id),
+		nullptr, nullptr, nullptr);
+}
+
+void react(std::shard_ptr<DppBot> &bot, string channel_id, string message_id, string emoji)
+{
+	bot->call(
+		make_shared<string>("PUT"),
+		make_shared<string>("/channels/"+channel_id+"/messages/"+message_id+"/reactions/"+emoji+"/@me"),
+		nullptr, nullptr, nullptr);
+}
+
+void insert_submission(
+
 string token;
 static string submissions_id = "758776672186138624";
 static string error_id = "758777881966018590";
@@ -117,17 +147,9 @@ int main() {
 					// todo break if sender is ourselves
 					if(in_submissions && (!has_attachments || content.size() < 5))
 					{
-						bot->call(
-								make_shared<string>("DELETE"),
-								make_shared<string>("/channels/"+channel_id+"/messages/"+message_id),
-								nullptr, nullptr, nullptr);
-						json tosend;
-						tosend["content"] = "<@"+author_id+">, " + "All submissions must have both an attachment and a message length >= 5. Your submission was deleted from discord and not counted.";
-						bot->call(
-								make_shared<string>("POST"),
-								make_shared<string>("/channels/"+error_id+"/messages"),
-								make_shared<json>(tosend),
-								nullptr, nullptr);
+						delete_message(bot, channel_id, message_id);
+						send_message(bot, error_id,
+								"<@"+author_id+">, " + "All submissions must have both an attachment and a message of length >= 5. Your submission was deleted and not counted.");
 					}
 					else if(in_submissions)
 					{
@@ -138,7 +160,7 @@ int main() {
 						long h = attachment["height"].get<long>();
 						long w = attachment["width"].get<long>();
 						string filename = attachment["filename"].get<string>();
-						db << "insert into submissions (author, link, filename, timestmp, width, height, size, description) values (?,?,?,?,?,?,?,?);" // utf16 query string
+						db << "insert into submissions (author, link, filename, timestmp, width, height, size, description) values (?,?,?,?,?,?,?,?);"
 							<< author_id
 							<< url
 							<< filename
@@ -149,10 +171,7 @@ int main() {
 							<< content;
 						cout << "Successfully inserted new entry, " << author_id << " now has " << postcount(author_id) << endl;
 
-						bot->call(
-								make_shared<string>("PUT"),
-								make_shared<string>("/channels/"+submissions_id+"/messages/"+message_id+"/reactions/"+"%F0%9F%86%97"+"/@me"),
-								nullptr, nullptr, nullptr);
+						react(bot, submissions_id, message_id, "%F0%9F%86%97");
 					}
 					else if(in_error)
 					{
@@ -173,13 +192,8 @@ int main() {
 								datastring = desc + "\n" + url;
 							}
 						}
-						json tosend;
-						tosend["content"] = "<@"+author_id+">, " + datastring;
-						bot->call(
-								make_shared<string>("POST"),
-								make_shared<string>("/channels/"+error_id+"/messages"),
-								make_shared<json>(tosend),
-								nullptr, nullptr);
+						send_message(bot, error_id,
+								"<@"+author_id+">, " + datastring);
 					}
 					cout << msg << endl;
 				}
